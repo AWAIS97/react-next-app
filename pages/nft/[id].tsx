@@ -1,7 +1,13 @@
 import React from 'react'
 import { useAddress, useDisconnect, useMetamask } from '@thirdweb-dev/react'
+import type { GetServerSideProps } from 'next'
+import { sanityClient, urlFor } from '../../sanity'
+import { Collection } from '../../typings'
+interface Props {
+  collection: Collection
+}
 
-const NFTDropPage = () => {
+const NFTDropPage = ({ collection }: Props) => {
   const connectWithMetamask = useMetamask()
   const address = useAddress()
   const disconnect = useDisconnect()
@@ -14,12 +20,14 @@ const NFTDropPage = () => {
           <div className="rounded-xl bg-gradient-to-br from-yellow-400 to-purple-600 p-2">
             <img
               className="w-44 rounded-xl object-cover lg:h-96 lg:w-72"
-              src="https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/6dcc1b115094373.608c56637c4fa.jpg"
+              src={urlFor(collection.mainImage).url()}
               alt=""
             />
           </div>
           <div className="space-y-2 p-5 text-center">
-            <h1 className="text-4xl font-bold text-white">My-NFT</h1>
+            <h1 className="text-4xl font-bold text-white">
+              {collection.title}
+            </h1>
             <h2 className="text-xl text-gray-300">
               {' '}
               This the collection of My NFT ART
@@ -54,12 +62,12 @@ const NFTDropPage = () => {
         <div className="mt-10 flex flex-1 flex-col items-center space-y-6 text-center lg:justify-center lg:space-y-0">
           <img
             className="w-80 object-cover pb-10 lg:h-40"
-            src="https://static.news.bitcoin.com/wp-content/uploads/2021/05/QEYWFxUA-star-wars.jpg "
+            src={urlFor(collection.previewImage).url()}
             alt=""
           />
           <h1 className="text-3xl font-bold lg:text-5xl lg:font-extrabold">
             {' '}
-            The NFT ART Club | Drop NFT
+           {collection.title}
           </h1>
           <p className="pt-2 text-xl text-green-500">Claimed</p>
         </div>
@@ -72,3 +80,45 @@ const NFTDropPage = () => {
 }
 
 export default NFTDropPage
+
+export const getServerSideProps: GetServerSideProps = async ({ params }) => {
+  const query = `*[_type == "collection" && slug.current == $id][0]{
+    _id,
+    title,
+    address,
+    description,
+    nftCollectionName,
+    mainImage {
+      asset,
+    },
+    previewImage {
+      asset
+    },
+    slug {
+      current
+    },
+    creator-> {
+      _id,
+      name,
+      address,
+      slug {
+        current
+      },
+
+    }
+  }`
+  const collection = await sanityClient.fetch(query, {
+    id: params?.id,
+  })
+
+  if (!collection) {
+    return {
+      notFound: true,
+    }
+  }
+  return {
+    props: {
+      collection,
+    },
+  }
+}
